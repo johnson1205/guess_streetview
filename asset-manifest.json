@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/guess_streetview/static/css/main.e6c13ad2.css",
+    "main.js": "/guess_streetview/static/js/main.ffdbb8a4.js",
+    "static/js/453.93e21316.chunk.js": "/guess_streetview/static/js/453.93e21316.chunk.js",
+    "index.html": "/guess_streetview/index.html",
+    "main.e6c13ad2.css.map": "/guess_streetview/static/css/main.e6c13ad2.css.map",
+    "main.ffdbb8a4.js.map": "/guess_streetview/static/js/main.ffdbb8a4.js.map",
+    "453.93e21316.chunk.js.map": "/guess_streetview/static/js/453.93e21316.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.ffdbb8a4.js"
+  ]
+}
