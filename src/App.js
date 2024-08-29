@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleMap, StreetViewPanorama, useJsApiLoader, Marker, Polyline } from "@react-google-maps/api";
+import { DOMParser } from 'xmldom';
+import raw from './map.kml';
+import * as toGeoJSON from '@tmcw/togeojson';  // Change this line
+import earcut from 'earcut';
+
+
 
 const containerStyle = {
   width: '100%',
   height: '400px'
 };
+
+const kmlFilePath = './map.kml';
+
 
 const GeoGuesser = ({ apiKey }) => {
   const [lat, setLat] = useState(0);
@@ -14,21 +23,92 @@ const GeoGuesser = ({ apiKey }) => {
   const [difference, setDifference] = useState(null);
   const [showDifference, setShowDifference] = useState(false);
   const [markers, setMarkers] = useState([]);
-  const [showButton, setShowButton] = useState(true); // 新增一個狀態來控制按鈕顯示
+  const [showButton, setShowButton] = useState(true);
+  const [polygons, setPolygons] = useState([]);
   const MIN_LATITUDE = 25.109648919691022;
   const MAX_LATITUDE = 24.938563476039995;
   const MIN_LONGITUDE = 121.42900431428681;
   const MAX_LONGITUDE = 121.66949047322854;
+  
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: apiKey
   });
 
+
+  const isPointInPolygon = (point, coordinates) => {
+    const [lng, lat] = point;
+    let inside = false;
+    for (let i = 0, j = coordinates.length - 1; i < coordinates.length; j = i++) {
+      const xi = coordinates[i][0], yi = coordinates[i][1];
+      const xj = coordinates[j][0], yj = coordinates[j][1];
+      const intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  const getBoundingBox = (coordinates) => {
+    const lats = coordinates.map(coord => coord[1]);
+    const lngs = coordinates.map(coord => coord[0]);
+    return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+  };
+
+  const generateRandomPosition = (polygons) => {
+    if (polygons.length > 0) {
+      const polygon = polygons[Math.floor(Math.random() * polygons.length)];
+      
+      // 移除每個座標的第三個元素
+      const coordinates = polygon.geometry.coordinates[0].map(coord => [coord[0], coord[1]]);
+      // 將座標轉換為 earcut 可以使用的格式
+      const flatCoordinates = coordinates.flat();
+      
+      // 進行三角剖分
+      const triangles = earcut(flatCoordinates);
+      
+      // 隨機選擇一個三角形
+      const triangleIndex = Math.floor(Math.random() * triangles.length / 3) * 3;
+      
+      // 在選中的三角形內生成隨機點
+      const point = randomPointInTriangle(
+        [flatCoordinates[triangles[triangleIndex] * 2], flatCoordinates[triangles[triangleIndex] * 2 + 1]],
+        [flatCoordinates[triangles[triangleIndex + 1] * 2], flatCoordinates[triangles[triangleIndex + 1] * 2 + 1]],
+        [flatCoordinates[triangles[triangleIndex + 2] * 2], flatCoordinates[triangles[triangleIndex + 2] * 2 + 1]]
+      );
+      
+      console.log(point[0]);
+      console.log(point[1]);
+      
+      setLng(point[0]);
+      setLat(point[1]);
+    }
+  };
+  
+  
+  // 在三角形內生成隨機點
+  const randomPointInTriangle = (a, b, c) => {
+    const r1 = Math.random();
+    const r2 = Math.random();
+    const sqrtR1 = Math.sqrt(r1);
+  
+    return [
+      (1 - sqrtR1) * a[0] + sqrtR1 * (1 - r2) * b[0] + sqrtR1 * r2 * c[0],
+      (1 - sqrtR1) * a[1] + sqrtR1 * (1 - r2) * b[1] + sqrtR1 * r2 * c[1]
+    ];
+  };
+
+
   useEffect(() => {
-    // 隨機生成街景的經緯度
-    const randomLat = Math.random() * (MAX_LATITUDE - MIN_LATITUDE) + MIN_LATITUDE;
-    const randomLng = Math.random() * (MAX_LONGITUDE - MIN_LONGITUDE) + MIN_LONGITUDE;
-    setLat(randomLat);
-    setLng(randomLng);
+    fetch(raw)
+      .then(response => response.text())
+      .then(data => {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const kml = toGeoJSON.kml(xmlDoc);
+
+        const newPolygons = kml.features.filter(feature => feature.geometry.type === 'Polygon');
+        setPolygons(newPolygons);
+        generateRandomPosition(newPolygons);
+      });
   }, []);
 
   const randomPosition = {
@@ -211,6 +291,7 @@ function App() {
       {!isApiKeySet && (
         <div>
           <h1>Please enter your Google Maps API Key:</h1>
+          <h1>version 1.1</h1>
           <input
             type="text"
             value={apiKey}
