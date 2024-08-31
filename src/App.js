@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GoogleMap, StreetViewPanorama, useJsApiLoader, Marker, Polyline } from "@react-google-maps/api";
 import { DOMParser } from 'xmldom';
 import raw from './map.kml';
-import * as toGeoJSON from '@tmcw/togeojson';  // Change this line
+import * as toGeoJSON from '@tmcw/togeojson';
 import earcut from 'earcut';
 
 
@@ -56,35 +56,21 @@ const GeoGuesser = ({ apiKey }) => {
   const generateRandomPosition = (polygons) => {
     if (polygons.length > 0) {
       const polygon = polygons[Math.floor(Math.random() * polygons.length)];
-      
-      // 移除每個座標的第三個元素
       const coordinates = polygon.geometry.coordinates[0].map(coord => [coord[0], coord[1]]);
-      // 將座標轉換為 earcut 可以使用的格式
       const flatCoordinates = coordinates.flat();
-      
-      // 進行三角剖分
       const triangles = earcut(flatCoordinates);
-      
-      // 隨機選擇一個三角形
       const triangleIndex = Math.floor(Math.random() * triangles.length / 3) * 3;
-      
-      // 在選中的三角形內生成隨機點
       const point = randomPointInTriangle(
         [flatCoordinates[triangles[triangleIndex] * 2], flatCoordinates[triangles[triangleIndex] * 2 + 1]],
         [flatCoordinates[triangles[triangleIndex + 1] * 2], flatCoordinates[triangles[triangleIndex + 1] * 2 + 1]],
         [flatCoordinates[triangles[triangleIndex + 2] * 2], flatCoordinates[triangles[triangleIndex + 2] * 2 + 1]]
       );
-      
-      console.log(point[0]);
-      console.log(point[1]);
-      
       setLng(point[0]);
       setLat(point[1]);
     }
   };
   
   
-  // 在三角形內生成隨機點
   const randomPointInTriangle = (a, b, c) => {
     const r1 = Math.random();
     const r2 = Math.random();
@@ -140,15 +126,12 @@ const GeoGuesser = ({ apiKey }) => {
     return distance;
   };
 
-  // 在 handleGuess 函數中計算距離
   const handleGuess = () => {
-    // 計算猜測的經緯度與實際經緯度之間的距離
     const diff = calculateDistance(parseFloat(guessLat), parseFloat(guessLng), lat, lng);
-    setDifference(diff.toFixed(2)); // 四捨五入到小數點後兩位
+    setDifference(diff.toFixed(2));
     setShowDifference(true);
-    // 將猜測位置和實際位置添加到標記列表中
     setMarkers([...markers, {lat: guessPosition.lat, lng: guessPosition.lng}, {lat: lat, lng: lng}]);
-    setShowButton(false); // 按下按鈕後隱藏按鈕
+    setShowButton(false);
   };
 
 
@@ -157,7 +140,6 @@ const GeoGuesser = ({ apiKey }) => {
       <h1>GeoGuesser</h1>
       <div style={{ display: 'flex' }}>
         <div style={{ flex: 1 }}>
-          {/* 全景視窗 */}
           {isLoaded && (
             <GoogleMap
               mapContainerStyle={containerStyle}
@@ -207,7 +189,6 @@ const GeoGuesser = ({ apiKey }) => {
           )}
         </div>
         <div style={{ flex: 1 }}>
-          {/* Google 地圖視窗 */}
           {isLoaded && (
             <GoogleMap
               mapContainerStyle={containerStyle}
@@ -250,7 +231,6 @@ const GeoGuesser = ({ apiKey }) => {
         </div>
       </div>
       <div>
-        {/* 地圖元件，用於使用者猜測街景的位置 */}
         <input
           type="text"
           placeholder="Guess Latitude"
