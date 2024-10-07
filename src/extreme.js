@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleMap, StreetViewPanorama, useJsApiLoader, Marker, Polyline } from "@react-google-maps/api";
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
 import { DOMParser } from 'xmldom';
 import raw from './map.kml';
-import * as toGeoJSON from '@tmcw/togeojson';  // Change this line
+import * as toGeoJSON from '@tmcw/togeojson'; 
 import earcut from 'earcut';
-
 
 const containerStyle = {
   width: '100%',
   height: '400px'
 };
-
-const kmlFilePath = './map.kml';
-
 
 const GeoGuesser = ({ apiKey }) => {
   const [lat, setLat] = useState(0);
@@ -24,77 +20,39 @@ const GeoGuesser = ({ apiKey }) => {
   const [markers, setMarkers] = useState([]);
   const [showButton, setShowButton] = useState(true);
   const [polygons, setPolygons] = useState([]);
-  const MIN_LATITUDE = 25.109648919691022;
-  const MAX_LATITUDE = 24.938563476039995;
-  const MIN_LONGITUDE = 121.42900431428681;
-  const MAX_LONGITUDE = 121.66949047322854;
-  
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: apiKey
   });
 
-
-  const isPointInPolygon = (point, coordinates) => {
-    const [lng, lat] = point;
-    let inside = false;
-    for (let i = 0, j = coordinates.length - 1; i < coordinates.length; j = i++) {
-      const xi = coordinates[i][0], yi = coordinates[i][1];
-      const xj = coordinates[j][0], yj = coordinates[j][1];
-      const intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  };
-
-  const getBoundingBox = (coordinates) => {
-    const lats = coordinates.map(coord => coord[1]);
-    const lngs = coordinates.map(coord => coord[0]);
-    return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
-  };
-
   const generateRandomPosition = (polygons) => {
     if (polygons.length > 0) {
       const polygon = polygons[Math.floor(Math.random() * polygons.length)];
-      
-      // 移除每個座標的第三個元素
       const coordinates = polygon.geometry.coordinates[0].map(coord => [coord[0], coord[1]]);
-      // 將座標轉換為 earcut 可以使用的格式
       const flatCoordinates = coordinates.flat();
-      
-      // 進行三角剖分
       const triangles = earcut(flatCoordinates);
-      
-      // 隨機選擇一個三角形
       const triangleIndex = Math.floor(Math.random() * triangles.length / 3) * 3;
-      
-      // 在選中的三角形內生成隨機點
       const point = randomPointInTriangle(
         [flatCoordinates[triangles[triangleIndex] * 2], flatCoordinates[triangles[triangleIndex] * 2 + 1]],
         [flatCoordinates[triangles[triangleIndex + 1] * 2], flatCoordinates[triangles[triangleIndex + 1] * 2 + 1]],
         [flatCoordinates[triangles[triangleIndex + 2] * 2], flatCoordinates[triangles[triangleIndex + 2] * 2 + 1]]
       );
-      
-      console.log(point[0]);
-      console.log(point[1]);
-      
+
       setLng(point[0]);
       setLat(point[1]);
     }
   };
-  
-  
-  // 在三角形內生成隨機點
+
   const randomPointInTriangle = (a, b, c) => {
     const r1 = Math.random();
     const r2 = Math.random();
     const sqrtR1 = Math.sqrt(r1);
-  
+
     return [
       (1 - sqrtR1) * a[0] + sqrtR1 * (1 - r2) * b[0] + sqrtR1 * r2 * c[0],
       (1 - sqrtR1) * a[1] + sqrtR1 * (1 - r2) * b[1] + sqrtR1 * r2 * c[1]
     ];
   };
-
 
   useEffect(() => {
     fetch(raw)
@@ -103,31 +61,23 @@ const GeoGuesser = ({ apiKey }) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data, "text/xml");
         const kml = toGeoJSON.kml(xmlDoc);
-
         const newPolygons = kml.features.filter(feature => feature.geometry.type === 'Polygon');
         setPolygons(newPolygons);
         generateRandomPosition(newPolygons);
       });
   }, []);
 
-  const randomPosition = {
-    lat: lat,
-    lng: lng
-  }
-
   const guessPosition = {
     lat: parseFloat(guessLat) || 0,
     lng: parseFloat(guessLng) || 0
   };
 
-  // 將經度和緯度轉換為弧度
   const toRadians = (angle) => {
     return angle * (Math.PI / 180);
   };
 
-  // 使用球面三角法計算兩點之間的距離
   const calculateDistance = (lat1, lng1, lat2, lng2) => {
-    const earthRadius = 6371; // 地球半徑，單位為公里
+    const earthRadius = 6371;
     const dLat = toRadians(lat2 - lat1);
     const dLng = toRadians(lng2 - lng1);
     const a =
@@ -135,79 +85,32 @@ const GeoGuesser = ({ apiKey }) => {
       Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
       Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = earthRadius * c;
-    return distance;
+    return earthRadius * c;
   };
 
-  // 在 handleGuess 函數中計算距離
   const handleGuess = () => {
-    // 計算猜測的經緯度與實際經緯度之間的距離
     const diff = calculateDistance(parseFloat(guessLat), parseFloat(guessLng), lat, lng);
-    setDifference(diff.toFixed(2)); // 四捨五入到小數點後兩位
+    setDifference(diff.toFixed(2));
     setShowDifference(true);
-    // 將猜測位置和實際位置添加到標記列表中
-    setMarkers([...markers, {lat: guessPosition.lat, lng: guessPosition.lng}, {lat: lat, lng: lng}]);
-    setShowButton(false); // 按下按鈕後隱藏按鈕
+    setMarkers([...markers, { lat: guessPosition.lat, lng: guessPosition.lng }, { lat, lng }]);
+    setShowButton(false);
   };
-
 
   return (
     <div>
       <h1>GeoGuesser</h1>
       <div style={{ display: 'flex' }}>
         <div style={{ flex: 1 }}>
-          {/* 全景視窗 */}
+          {/* 顯示靜態街景圖片 */}
           {isLoaded && (
-            <GoogleMap
-              mapContainerStyle={containerStyle}
-              center={randomPosition}
-              zoom={14}
-              onClick={(e) => {
-                setGuessLat(e.latLng.lat());
-                setGuessLng(e.latLng.lng());
-              }}
-            >
-              <StreetViewPanorama
-                position={randomPosition}
-                visible
-                options={{
-                  radius: 5000,
-                  source: 'outdoor',
-                  showRoadLabels: false,
-                }}
-              />
-              {markers.map((marker, index) => (
-                <Marker
-                  key={index}
-                  position={marker}
-                  icon={{
-                    url: index % 2 === 0 ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                    scaledSize: new window.google.maps.Size(30, 30),
-                  }}
-                  onClick={() => {
-                    if (index % 2 === 0) {
-                      alert(`Guessed Coordinate: ${marker.lat}, ${marker.lng}`);
-                    } else {
-                      alert(`Actual Coordinate: ${marker.lat}, ${marker.lng}`);
-                    }
-                  }}
-                />
-              ))}
-              {markers.length === 2 && (
-                <Polyline
-                  path={markers}
-                  options={{
-                    strokeColor: '#FF0000',
-                    strokeOpacity: 1.0,
-                    strokeWeight: 2,
-                  }}
-                />
-              )}
-            </GoogleMap>
+            <img
+              src={`https://maps.googleapis.com/maps/api/streetview?size=1920x1080&source=outdoor&radius=5000&location=${lat},${lng}&key=${apiKey}`}
+              alt="Street View"
+              style={{ width: '100%', height: '400px' }}
+            />
           )}
         </div>
         <div style={{ flex: 1 }}>
-          {/* Google 地圖視窗 */}
           {isLoaded && (
             <GoogleMap
               mapContainerStyle={containerStyle}
@@ -250,7 +153,6 @@ const GeoGuesser = ({ apiKey }) => {
         </div>
       </div>
       <div>
-        {/* 地圖元件，用於使用者猜測街景的位置 */}
         <input
           type="text"
           placeholder="Guess Latitude"
@@ -270,15 +172,13 @@ const GeoGuesser = ({ apiKey }) => {
           <p>Actual Location: Latitude: {lat}, Longitude: {lng}</p>
           <p>Your Guess: Latitude: {guessLat}, Longitude: {guessLng}</p>
           <p>Difference: {difference} km</p>
-          
         </div>
       )}
-
     </div>
   );
 };
 
-function App() {
+function Hard() {
   const [apiKey, setApiKey] = useState('');
   const [isApiKeySet, setIsApiKeySet] = useState(false);
 
@@ -289,7 +189,7 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div className="Hard">
       {!isApiKeySet && (
         <div>
           <h1>Please enter your Google Maps API Key:</h1>
@@ -307,4 +207,4 @@ function App() {
   );
 }
 
-export default App;
+export default Hard;

@@ -33,6 +33,10 @@ const GeoGuesser = ({ apiKey }) => {
     googleMapsApiKey: apiKey
   });
 
+  const generateStreetViewImageUrl = () => {
+    return `https://maps.googleapis.com/maps/api/streetview?size=320x400&location=${lat},${lng}&key=${apiKey}`;
+  };
+
 
   const isPointInPolygon = (point, coordinates) => {
     const [lng, lat] = point;
@@ -173,7 +177,10 @@ const GeoGuesser = ({ apiKey }) => {
                 options={{
                   radius: 5000,
                   source: 'outdoor',
-                  showRoadLabels: false,
+                  disableDefaultUI: true, // 禁用所有預設 UI 控件
+                  clickToGo: false,      // 禁用點擊移動功能
+                  panControl: false,     // 禁用平移功能
+                  showRoadLabels: false
                 }}
               />
               {markers.map((marker, index) => (
@@ -278,7 +285,7 @@ const GeoGuesser = ({ apiKey }) => {
   );
 };
 
-function App() {
+function Hard() {
   const [apiKey, setApiKey] = useState('');
   const [isApiKeySet, setIsApiKeySet] = useState(false);
 
@@ -289,7 +296,7 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div className="Hard">
       {!isApiKeySet && (
         <div>
           <h1>Please enter your Google Maps API Key:</h1>
@@ -307,4 +314,4 @@ function App() {
   );
 }
 
-export default App;
+export default Hard;
